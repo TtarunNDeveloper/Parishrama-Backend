@@ -5,7 +5,7 @@ const SolutionBankSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     questionNumber: { type: Number, required: true },
     correctOption: { type: String }, // For MCQ/TrueFalse
-    correctSolution: { type: String, required: true } // For all question types
+    correctSolution: { type: String, required: false } // For all question types
 });
 
 module.exports = mongoose.model('SolutionBank', SolutionBankSchema);

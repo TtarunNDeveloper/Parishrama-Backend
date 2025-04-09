@@ -36,8 +36,11 @@ const ReportRoute = require('./routes/report.route')
 app.use('/',ReportRoute)
 
 const StudentReportRoute = require('./routes/studentreport.route');
-const { config } = require("dotenv");
 app.use('/',StudentReportRoute)
+
+const UserModelRoute = require('./routes/user.routes');
+app.use('/',UserModelRoute)
+
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
