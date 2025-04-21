@@ -8,7 +8,7 @@ const ReportSchema = new mongoose.Schema({
     },
     questionType: { 
         type: String, 
-        enum: ['MCQ', 'FillInTheBlanks', 'TrueFalse'], 
+        enum: ['MCQ', 'FillInTheBlanks', 'Theory'], 
         required: true 
     },
     testName: { 
@@ -22,6 +22,10 @@ const ReportSchema = new mongoose.Schema({
     date: { 
         type: Date, 
         required: true 
+    },
+    totalQuestions: {
+        type: Number,
+        required: true
     }
 }, { timestamps: true });
 

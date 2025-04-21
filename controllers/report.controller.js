@@ -11,11 +11,11 @@ exports.createReport = async (req, res) => {
         if (!stream || !questionType || !testName || !date || !marksType || !reportBank) {
             return res.status(400).json({ 
                 status: "error", 
-                message: "All fields are required: stream, questionType, testName, date, marksType, reportBank" 
+                message: "All fields are required" 
             });
         }
 
-        // Check if corresponding Solution exists
+        // Check solution exists
         const solution = await Solution.findOne({ 
             testName,
             date: new Date(date),
@@ -26,50 +26,53 @@ exports.createReport = async (req, res) => {
         if (!solution) {
             return res.status(400).json({ 
                 status: "error", 
-                message: "No solution exists for this test/date/questionType/stream combination" 
+                message: "No solution exists for this test" 
             });
         }
 
-        // Create Report
+        // Determine total questions from the first entry
+        const totalQuestions = reportBank.length > 0 
+            ? Object.keys(reportBank[0].questionAnswer).length
+            : 0;
+
+        // Create Report with totalQuestions
         const report = await Report.create({
             stream,
             questionType,
             testName,
             marksType,
-            date: new Date(date)
+            date: new Date(date),
+            totalQuestions
         });
 
         // Create ReportBank entries
         const reportBankEntries = await Promise.all(
             reportBank.map(entry => {
-                if (!entry.regNumber) {
-                    throw new Error("Registration number is required for all entries");
-                }
+                const questionAnswerMap = new Map();
+                
+                // Convert questionAnswer object to Map
+                Object.entries(entry.questionAnswer).forEach(([qNum, answer]) => {
+                    questionAnswerMap.set(qNum, answer !== undefined ? answer : "");
+                });
+
                 return ReportBank.create({
                     reportRef: report._id,
                     date: report.date,
                     regNumber: entry.regNumber,
-                    markedOptions: entry.markedOptions || new Map(),
-                    unmarkedOptions: entry.unmarkedOptions || []
+                    questionAnswer: questionAnswerMap
                 });
             })
         );
 
         res.status(201).json({
             status: "success",
-            message: "Report and entries created successfully",
+            message: "Report created successfully",
             reportId: report._id,
-            entriesCreated: reportBankEntries.length
+            entriesCreated: reportBankEntries.length,
+            totalQuestions
         });
 
     } catch (err) {
-        if(err.code === 11000){
-            return res.status(400).json({
-                status: "error",
-                message: "Duplicate entry detected. Please clean your database indexes.",
-                hint: "Run db.reportbanks.dropIndex('rollNo_1') in MongoDB Shell"
-            });
-        }
         res.status(400).json({ 
             status: "error", 
             message: err.message || "Failed to create report" 
@@ -80,28 +83,16 @@ exports.createReport = async (req, res) => {
 // Get ReportBank entries with filters
 exports.getReportBank = async (req, res) => {
     try {
-        const { 
-            reportRef, 
-            testName, 
-            stream, 
-            dateFrom, 
-            dateTo,
-            regNumber 
-        } = req.query;
+        const { reportRef, testName, stream, dateFrom, dateTo, regNumber } = req.query;
 
-        // Build filter step by step
+        // Build filters
         const reportFilter = {};
         const reportBankFilter = {};
 
-        // Report reference filter
-        if (reportRef) {
-            reportBankFilter.reportRef = reportRef;
-        }
-
-        // Stream filter
-        if (stream) {
-            reportFilter.stream = stream;
-        }
+        if (reportRef) reportBankFilter.reportRef = reportRef;
+        if (stream) reportFilter.stream = stream;
+        if (testName) reportFilter.testName = testName;
+        if (regNumber) reportBankFilter.regNumber = regNumber;
 
         // Date range filter
         if (dateFrom && dateTo) {
@@ -110,10 +101,6 @@ exports.getReportBank = async (req, res) => {
                 $lte: new Date(dateTo)
             };
         }
-
-        // Other filters
-        if (testName) reportFilter.testName = testName;
-        if (regNumber) reportBankFilter.regNumber = regNumber;
 
         // Find matching reports
         const reports = await Report.find(reportFilter);
@@ -124,24 +111,29 @@ exports.getReportBank = async (req, res) => {
             });
         }
 
-        // Add report IDs to report bank filter
-        reportBankFilter.reportRef = { $in: reports.map(r => r._id) };
-
         // Get ReportBank entries with populated data
+        reportBankFilter.reportRef = { $in: reports.map(r => r._id) };
         const entries = await ReportBank.find(reportBankFilter)
             .populate('reportRef');
 
-        // Format response
-        const formattedEntries = entries.map(entry => ({
-            reportId: entry.reportRef._id,
-            stream: entry.reportRef.stream,
-            testName: entry.reportRef.testName,
-            date: entry.reportRef.date,
-            marksType: entry.reportRef.marksType,
-            regNumber: entry.regNumber,
-            markedOptions: Object.fromEntries(entry.markedOptions),
-            unmarkedOptions: entry.unmarkedOptions
-        }));
+        // Format response with proper questionAnswer conversion
+        const formattedEntries = entries.map(entry => {
+            // Convert Map to Object if needed
+            const questionAnswers = entry.questionAnswer instanceof Map 
+                ? Object.fromEntries(entry.questionAnswer) 
+                : entry.questionAnswer || {};
+            
+            return {
+                reportId: entry.reportRef._id,
+                stream: entry.reportRef.stream,
+                testName: entry.reportRef.testName,
+                date: entry.reportRef.date,
+                marksType: entry.reportRef.marksType,
+                regNumber: entry.regNumber,
+                questionAnswers,
+                totalQuestions: entry.reportRef.totalQuestions || Object.keys(questionAnswers).length
+            };
+        });
 
         res.status(200).json({
             status: "success",
@@ -172,8 +164,7 @@ exports.getAllReportBank = async (req, res) => {
             date: entry.reportRef.date,
             marksType: entry.reportRef.marksType,
             regNumber: entry.regNumber,
-            markedOptions: Object.fromEntries(entry.markedOptions),
-            unmarkedOptions: entry.unmarkedOptions
+            questionAnswers: Object.fromEntries(entry.questionAnswer)
         }));
 
         res.status(200).json({
@@ -274,11 +265,14 @@ exports.deleteReportById = async function (req, res) {
 // Update ReportBank entry
 exports.updateReportBankById = async function (req, res) {
     try {
-        const { regNumber, markedOptions, unmarkedOptions } = req.body;
+        const { regNumber, questionAnswer } = req.body;
 
         const updatedEntry = await ReportBank.findByIdAndUpdate(
             req.params.entryId,
-            { regNumber, markedOptions, unmarkedOptions },
+            { 
+                regNumber, 
+                questionAnswer: new Map(Object.entries(questionAnswer || {})) 
+            },
             { new: true }
         ).populate('reportRef');
 
@@ -286,7 +280,13 @@ exports.updateReportBankById = async function (req, res) {
             return res.status(404).json({ status: "error", message: "ReportBank entry not found" });
         }
 
-        res.status(200).json({ status: "success", data: updatedEntry });
+        res.status(200).json({ 
+            status: "success", 
+            data: {
+                ...updatedEntry.toObject(),
+                questionAnswer: Object.fromEntries(updatedEntry.questionAnswer)
+            }
+        });
 
     } catch (err) {
         res.status(400).json({ status: "error", message: err.message });

@@ -10,10 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 mongoose
-  .connect(process.env.MONGO_URL,{
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  })
+  .connect(process.env.MONGO_URL)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("Failed to connect to MongoDB:", err));
 
@@ -41,6 +38,17 @@ app.use('/',StudentReportRoute)
 const UserModelRoute = require('./routes/user.routes');
 app.use('/',UserModelRoute)
 
+const StudentRoute = require('./routes/students.route');
+app.use('/', StudentRoute);
+
+const CampusRoute = require('./routes/campus.route');
+app.use('/', CampusRoute);
+
+const PatternsRoute = require('./routes/patterns.route');
+app.use('/', PatternsRoute)
+
+const DetailedReportRoute = require('./routes/detailedreport.route');
+app.use('/', DetailedReportRoute);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

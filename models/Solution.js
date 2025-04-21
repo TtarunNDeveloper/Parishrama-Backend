@@ -8,7 +8,7 @@ const SolutionSchema = new mongoose.Schema({
     },
     questionType: { 
         type: String, 
-        enum: ['MCQ', 'FillInTheBlanks', 'TrueFalse'], 
+        enum: ['MCQ', 'FillInTheBlanks', 'Theory'], 
         required: true 
     },
     testName: { 

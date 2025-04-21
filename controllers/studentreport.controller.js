@@ -9,7 +9,7 @@ exports.createStudentReport = async (req, res) => {
       const requiredFields = [
           'regNumber', 'stream', 'testName', 'date',
           'marksType', 'totalQuestions', 'correctAnswers', 'wrongAnswers',
-          'unattempted', 'accuracy', 'totalMarks', 'percentile', 'responses'
+          'unattempted', 'accuracy','percentage', 'totalMarks', 'percentile', 'responses'
       ];
   
       // Validate all required fields exist
@@ -44,7 +44,7 @@ exports.createStudentReport = async (req, res) => {
 // Get all StudentReports with filters (simplified)
 exports.getStudentReports = async (req, res) => {
     try {
-        const { regNumber, subject, chapter, subtopic, testName, date, minAccuracy, maxAccuracy } = req.query;
+        const { regNumber, testName, date, minAccuracy, maxAccuracy } = req.query;
         const filter = {};
 
         // Apply basic filters
@@ -59,29 +59,8 @@ exports.getStudentReports = async (req, res) => {
             if (maxAccuracy) filter.accuracy.$lte = Number(maxAccuracy);
         }
 
-        // Subject filter
-        if (subject) {
-            const subjectDoc = await Subject.findOne({ subjectName: subject });
-            if (subjectDoc) filter.subject = subjectDoc._id;
-        }
-
-        // Chapter filter
-        if (chapter) {
-            const chapterDoc = await Chapter.findOne({ chapterName: chapter });
-            if (chapterDoc) filter.chapter = chapterDoc._id;
-        }
-
-        // Subtopic filter
-        if (subtopic) {
-            const subtopicDoc = await Subtopic.findOne({ subtopicName: subtopic });
-            if (subtopicDoc) filter.subtopic = subtopicDoc._id;
-        }
-
-        // Get reports with populated data
+        // Get reports without unnecessary population
         const reports = await StudentReport.find(filter)
-            .populate('subject', 'subjectName')
-            .populate('chapter', 'chapterName')
-            .populate('subtopic', 'subtopicName')
             .sort({ date: -1 });
 
         res.status(200).json({

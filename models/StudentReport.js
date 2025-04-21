@@ -42,6 +42,10 @@ const StudentReportSchema = new mongoose.Schema({
         type: Number, 
         required: true 
     }, 
+    percentage:{
+        type: Number,
+        required: true
+    },
     totalMarks: { 
         type: Number, 
         required: true 
@@ -59,7 +63,7 @@ const StudentReportSchema = new mongoose.Schema({
             type: String 
         }, 
         correctOption: { 
-            type: String, 
+            type: [String], 
             required: true 
         },
         isCorrect: { 

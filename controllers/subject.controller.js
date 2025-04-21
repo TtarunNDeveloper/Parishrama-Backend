@@ -33,7 +33,6 @@ exports.getSubject = async function (req,res) {
      })
     }
  }
-
  // Read Subject
 exports.getSubjectById = async function (req,res) {
     try{
@@ -49,7 +48,6 @@ exports.getSubjectById = async function (req,res) {
      })
     }
  }
-
 //  Edit
  exports.updatSubjectById = async function (req,res) {
     try{
