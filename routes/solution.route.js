@@ -13,6 +13,4 @@ router.put("/api/updatesolutionbank/:entryId", solutionController.updateSolution
 router.put("/api/updatesolutionsinbulk", solutionController.updateSolutionsInBulk);
 router.delete("/api/deletesolutionbank/:entryId", solutionController.deleteSolutionBankById);
 
-//Regenarating reports
-router.post("/api/regeneratereports", solutionController.regenerateReports);
 module.exports = router;

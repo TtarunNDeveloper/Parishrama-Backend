@@ -71,12 +71,32 @@ const StudentReportSchema = new mongoose.Schema({
             required: true 
         }
     }]
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    optimisticConcurrency: true,
+    versionKey: 'version'
+  });
 
 StudentReportSchema.index({ regNumber: 1 });
 StudentReportSchema.index({ testName: 1 });
 StudentReportSchema.index({ stream: 1 });
-StudentReportSchema.index({ regNumber: 1, testName: 1, date: 1 });
+StudentReportSchema.index(
+    { 
+      regNumber: 1, 
+      testName: 1, 
+      stream: 1, 
+      date: 1 
+    }, 
+    { 
+      unique: true,
+      partialFilterExpression: {
+        regNumber: { $exists: true },
+        testName: { $exists: true },
+        stream: { $exists: true },
+        date: { $exists: true }
+      }
+    }
+  );
 StudentReportSchema.index({ stream: 1, testName: 1 }); 
 StudentReportSchema.index({ date: 1, stream: 1 }); 
 
